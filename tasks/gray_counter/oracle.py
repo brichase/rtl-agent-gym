@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import re
 import shutil
 import subprocess
 import sys
@@ -30,7 +31,17 @@ def operations(seed: int) -> list[tuple[str, int]]:
     return result
 
 
-def make_tb(ops: list[tuple[str, int]]) -> str:
+def discover_module_name(design: Path) -> str:
+    source = design.read_text(encoding="utf-8")
+    source = re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL)
+    source = re.sub(r"//[^\r\n]*", "", source)
+    match = re.search(r"\bmodule\s+([A-Za-z_][A-Za-z0-9_$]*)", source)
+    if match is None:
+        raise RuntimeError(f"no module declaration found in {design}")
+    return match.group(1)
+
+
+def make_tb(ops: list[tuple[str, int]], module_name: str) -> str:
     body: list[str] = []
     trace_index = 0
     for kind, reset_value in ops:
@@ -50,7 +61,7 @@ def make_tb(ops: list[tuple[str, int]]) -> str:
             "`timescale 1ns/1ps",
             "module oracle_tb;",
             "  reg clk; reg rst_n; wire [3:0] gray;",
-            "  gray_counter #(.N(4)) dut(.clk(clk), .rst_n(rst_n), .gray(gray));",
+            f"  {module_name} #(.N(4)) dut(.clk(clk), .rst_n(rst_n), .gray(gray));",
             "  initial begin",
             "    clk=1'b0; rst_n=1'b0;",
             *body,
@@ -96,9 +107,13 @@ def main() -> int:
     root = Path(tempfile.mkdtemp(prefix=f"gray_{args.seed}_", dir=args.workdir))
     result = {"pass": False, "seed": args.seed, "checked": 0, "first_mismatch": None}
     try:
-        tb_text = make_tb(ops)
-        rtl_trace = simulate(args.rtl.resolve(), tb_text, root / "rtl", args.tools)
-        ref_trace = simulate(args.ref.resolve(), tb_text, root / "ref", args.tools)
+        rtl_trace = simulate(
+            args.rtl.resolve(), make_tb(ops, "gray_counter"), root / "rtl", args.tools
+        )
+        ref_path = args.ref.resolve()
+        ref_trace = simulate(
+            ref_path, make_tb(ops, discover_module_name(ref_path)), root / "ref", args.tools
+        )
         result["checked"] = min(len(rtl_trace), len(ref_trace))
         if len(rtl_trace) != len(ref_trace):
             result["first_mismatch"] = f"trace length rtl={len(rtl_trace)} ref={len(ref_trace)}"
