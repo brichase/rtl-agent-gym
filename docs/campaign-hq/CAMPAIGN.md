@@ -1,6 +1,6 @@
 # Campaign: rtl-agent-gym
 Goal: Build the adversarially hardened RTL-agent benchmark per `rtl-agent-gym-weekend-plan-v2.md` — 6 verified tasks, red-teamed grader, synthesis-cost proxy rewards, single-shot vs tool-loop ablation across claude-opus-5 and gpt-5.6-luna(max).
-Status: phase 4 of 6: all 6 tasks + 7 red-team attacks merged, smoke 34/34 green. Flood weakness found + mitigation in flight. User reviews batch 1 (D1-D4) + batch 2 pending. Pilot done (metric discriminates).
+Status: phase 4 COMPLETE. All 6 tasks + 7 red-team attacks + flood mitigation merged, smoke 34/34, unit tests green. All worktrees clean. BLOCKED ON USER: (1) 9 review decisions D1-D9 (artifact 522e5c82), (2) ANTHROPIC_API_KEY for phase 5 full eval. Pilot done (metric discriminates: fifo 0.70 single-shot vs 0.999 agentic). Red-team: 6 blocked + 1 weakness found AND mitigated.
 
 Spec: `rtl-agent-gym-weekend-plan-v2.md` (root). Interface contracts: `docs/CONTRACTS.md`.
 Scope discipline: plan §1 "Out" list is binding. Finish early → deepen analysis, never widen.
@@ -57,8 +57,9 @@ Scope discipline: plan §1 "Out" list is binding. Finish early → deepen analys
 | oracle-fix (module-name discovery) | codex companion resume | campaign/tasks-batch1 | .worktrees/tasks-batch1 | task-msm2j3qh-d1ezxx | 2026-08-09 | done, merged; smoke 15/15 |
 | agent-loop | codex companion (gpt-5.6-sol high) | campaign/agent-loop | .worktrees/agent-loop | task-msm2orkv-c9cqr6 | 2026-08-09 | running (~30 min expected) |
 | eval-harness | codex companion (gpt-5.6-sol high) | campaign/eval-harness | .worktrees/eval-harness | task-msm2ornb-jfmsr3 | 2026-08-09 | done, verified, merged |
-| tasks-batch2 | codex companion (gpt-5.6-sol high) | campaign/tasks-batch2 | .worktrees/tasks-batch2 | task-msm3xvbq-wv31up | 2026-08-09 | running (~40 min expected) |
-| redteam | Claude general-purpose (rerouted from Codex — content filter) | campaign/redteam | .worktrees/redteam | agent a4b338020185cf808 | 2026-08-09 | running |
+| tasks-batch2 | codex companion (gpt-5.6-sol high) | campaign/tasks-batch2 | (removed) | task-msm3xvbq-wv31up | 2026-08-09 | done, verified, merged; worktree cleaned |
+| redteam | Claude general-purpose (rerouted from Codex — content filter) | campaign/redteam | (removed) | agent a4b338020185cf808 | 2026-08-09 | done, verified, merged; FINDING: flood weakness |
+| harden-flood | codex companion (gpt-5.6-sol high) | campaign/harden-flood | (removed) | task-msm4g812-ngnma1 | 2026-08-09 | done, verified, merged; smoke 34/34 |
 
 ## Verified environment (kickoff preflight 2026-08-09)
 - OSS CAD Suite 2026-08-09 (linux-x64) at `toolchain/oss-cad-suite/` (gitignored, 2.5G): iverilog 14.0-devel s20260301, Yosys 0.68+40. Adder smoke: sim PASS, stat 20 cells.
