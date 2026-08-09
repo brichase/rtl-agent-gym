@@ -1,0 +1,9 @@
+name: axi_lite_regs
+top_module: axi_lite_regs
+kind: sequential
+compare_mode: transaction
+clock: clk
+reset: {signal: rst_n, active: low, sync: true}
+area_floor_cells: 20
+sim_timeout_s: 30
+oracle_runs: 3
