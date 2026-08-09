@@ -1,0 +1,12 @@
+{
+  "tokens_in": 11,
+  "tokens_out": 7,
+  "agentic": [
+    {"type": "tool_call", "name": "run_sim", "rtl_file": "ref/ref.v"},
+    {"type": "tool_call", "name": "run_synth", "rtl_file": "ref/ref.v"},
+    {"type": "tool_call", "name": "submit", "rtl_file": "ref/ref.v"}
+  ],
+  "single_shot": [
+    {"type": "message", "verilog_file": "broken/off_by_one.v"}
+  ]
+}
