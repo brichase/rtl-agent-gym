@@ -1,0 +1,9 @@
+name: sync_fifo
+top_module: sync_fifo
+kind: sequential
+compare_mode: cycle
+clock: clk
+reset: {signal: rst_n, active: low, sync: true}
+area_floor_cells: 20
+sim_timeout_s: 30
+oracle_runs: 3
