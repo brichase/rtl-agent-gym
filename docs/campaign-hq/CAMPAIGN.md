@@ -1,6 +1,6 @@
 # Campaign: rtl-agent-gym
 Goal: Build the adversarially hardened RTL-agent benchmark per `rtl-agent-gym-weekend-plan-v2.md` — 6 verified tasks, red-teamed grader, synthesis-cost proxy rewards, single-shot vs tool-loop ablation across claude-opus-5 and gpt-5.6-luna(max).
-Status: phase 3 of 6: wave 2 merged (19/19 tests); codex MCP approval fixed (default_tools_approval_mode=approve); luna pilot running; user review batch 1 pending (decision artifact sent)
+Status: phase 4 of 6: all 6 tasks + 7 red-team attacks merged, smoke 34/34 green. Flood weakness found + mitigation in flight. User reviews batch 1 (D1-D4) + batch 2 pending. Pilot done (metric discriminates).
 
 Spec: `rtl-agent-gym-weekend-plan-v2.md` (root). Interface contracts: `docs/CONTRACTS.md`.
 Scope discipline: plan §1 "Out" list is binding. Finish early → deepen analysis, never widen.
