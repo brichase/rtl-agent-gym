@@ -1,0 +1,8 @@
+toolchain/
+venv/
+__pycache__/
+*.pyc
+*.vvp
+*.vcd
+.worktrees/
+docs/campaign-hq/out/

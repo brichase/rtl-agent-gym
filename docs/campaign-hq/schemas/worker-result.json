@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "worker-result",
+  "type": "object",
+  "required": ["status", "branch", "commit", "files_changed", "verify_cmd", "verify_result", "live_smoke", "blockers"],
+  "properties": {
+    "status": { "enum": ["done", "awaiting-field-test", "partial", "blocked", "failed"] },
+    "branch": { "type": "string" },
+    "commit": { "type": "string", "description": "sha of the final commit; empty if none" },
+    "files_changed": { "type": "array", "items": { "type": "string" } },
+    "verify_cmd": { "type": "string" },
+    "verify_result": {
+      "type": "object",
+      "required": ["passed", "output_tail"],
+      "properties": {
+        "passed": { "type": "boolean" },
+        "output_tail": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "live_smoke": {
+      "type": ["object", "null"],
+      "description": "How the built artifact was exercised end-to-end against real data; null only if the task has no exercisable surface",
+      "required": ["cmd", "expected", "observed", "passed"],
+      "properties": {
+        "cmd": { "type": "string" },
+        "expected": { "type": "string" },
+        "observed": { "type": "string" },
+        "passed": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "blockers": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}
