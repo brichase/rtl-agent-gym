@@ -52,6 +52,8 @@ Scope discipline: plan §1 "Out" list is binding. Finish early → deepen analys
 
 | Task | Worker | Branch | Worktree | Session | Dispatched | Status |
 |---|---|---|---|---|---|---|
+| env-core | codex companion (gpt-5.6-sol high) | campaign/env-core | .worktrees/env-core | task-msm1ytx5-w1x4oz | 2026-08-09 ~10:15 | running (~20 min expected) |
+| tasks-batch1 | codex companion (gpt-5.6-sol high) | campaign/tasks-batch1 | .worktrees/tasks-batch1 | task-msm1ytzw-j1hkac | 2026-08-09 ~10:15 | running (~25 min expected) |
 
 ## Verified environment (kickoff preflight 2026-08-09)
 - OSS CAD Suite 2026-08-09 (linux-x64) at `toolchain/oss-cad-suite/` (gitignored, 2.5G): iverilog 14.0-devel s20260301, Yosys 0.68+40. Adder smoke: sim PASS, stat 20 cells.
