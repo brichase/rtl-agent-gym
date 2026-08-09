@@ -1,0 +1,7 @@
+name: barrel_shifter
+top_module: barrel_shifter
+kind: combinational
+compare_mode: cycle
+area_floor_cells: 2
+sim_timeout_s: 30
+oracle_runs: 3
