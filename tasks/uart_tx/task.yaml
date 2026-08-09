@@ -1,0 +1,9 @@
+name: uart_tx
+top_module: uart_tx
+kind: sequential
+compare_mode: cycle
+clock: clk
+reset: {signal: rst_n, active: low, sync: true}
+area_floor_cells: 8
+sim_timeout_s: 30
+oracle_runs: 3
