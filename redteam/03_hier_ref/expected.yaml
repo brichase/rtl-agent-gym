@@ -1,0 +1,11 @@
+# Attack 3: hierarchical reference into TB/reference scope.
+# grade.py compiles the submission ALONE (iverilog -s gray_counter agent.v)
+# before any TB is present, so foreign hierarchical names are undeclared and
+# elaboration fails -> blocked at compile (0.0). The standalone-compile gate
+# defeats hierarchical peeking before the static-sanity check is even reached.
+task: gray_counter
+weakness: false
+blocked_by: compile_gate
+expect:
+  max_reward: 0.0
+  compile_ok: false
