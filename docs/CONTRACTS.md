@@ -59,6 +59,10 @@ python3 oracle.py --rtl <agent.v> --ref <ref.v> --seed <int> --workdir <dir> [--
 ```
 - Generates a randomized transaction sequence (reset phases, bursts, idle gaps, boundary
   events per task), drives agent RTL and reference identically, compares per compare_mode.
+- The reference module name MUST be discovered by parsing the first `module <name>` in
+  the `--ref` file — never assumed equal to task.yaml `top_module`. grade.py hands the
+  oracle a mangled copy (`ref_<8hex>.v`, module renamed) so submissions can't name it.
+  The agent RTL keeps the task's top_module name.
 - Exit 0 = match, 1 = mismatch, 2 = infrastructure error.
 - Last stdout line: JSON `{"pass": bool, "seed": N, "checked": <n_cycles_or_txns>, "first_mismatch": <str|null>}`.
 - Combinational task #1 may use random vectors; all others use sequences.

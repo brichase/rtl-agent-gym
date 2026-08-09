@@ -1,6 +1,6 @@
 # Campaign: rtl-agent-gym
 Goal: Build the adversarially hardened RTL-agent benchmark per `rtl-agent-gym-weekend-plan-v2.md` — 6 verified tasks, red-teamed grader, synthesis-cost proxy rewards, single-shot vs tool-loop ablation across claude-opus-5 and gpt-5.6-luna(max).
-Status: phase 1 of 6: core build (wave 1 dispatched)
+Status: phase 2 of 6: integration — wave 1 merged; oracle module-name contract fix in flight
 
 Spec: `rtl-agent-gym-weekend-plan-v2.md` (root). Interface contracts: `docs/CONTRACTS.md`.
 Scope discipline: plan §1 "Out" list is binding. Finish early → deepen analysis, never widen.
@@ -52,8 +52,9 @@ Scope discipline: plan §1 "Out" list is binding. Finish early → deepen analys
 
 | Task | Worker | Branch | Worktree | Session | Dispatched | Status |
 |---|---|---|---|---|---|---|
-| env-core | codex companion (gpt-5.6-sol high) | campaign/env-core | .worktrees/env-core | task-msm1ytx5-w1x4oz | 2026-08-09 ~10:15 | running (~20 min expected) |
-| tasks-batch1 | codex companion (gpt-5.6-sol high) | campaign/tasks-batch1 | .worktrees/tasks-batch1 | task-msm1ytzw-j1hkac | 2026-08-09 ~10:15 | running (~25 min expected) |
+| env-core | codex companion (gpt-5.6-sol high) | campaign/env-core | .worktrees/env-core | task-msm1ytx5-w1x4oz | 2026-08-09 | done, verified, merged (11 min) |
+| tasks-batch1 | codex companion (gpt-5.6-sol high) | campaign/tasks-batch1 | .worktrees/tasks-batch1 | task-msm1ytzw-j1hkac | 2026-08-09 | done, verified, merged (11 min) |
+| oracle-fix (module-name discovery) | codex companion resume | campaign/tasks-batch1 | .worktrees/tasks-batch1 | task-msm2j3qh-d1ezxx | 2026-08-09 | running (~5 min expected) |
 
 ## Verified environment (kickoff preflight 2026-08-09)
 - OSS CAD Suite 2026-08-09 (linux-x64) at `toolchain/oss-cad-suite/` (gitignored, 2.5G): iverilog 14.0-devel s20260301, Yosys 0.68+40. Adder smoke: sim PASS, stat 20 cells.
