@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import re
 import shutil
 import subprocess
 import sys
@@ -43,7 +44,17 @@ def operations(seed: int) -> list[Operation]:
     return result
 
 
-def make_tb(ops: list[Operation]) -> str:
+def discover_module_name(design: Path) -> str:
+    source = design.read_text(encoding="utf-8")
+    source = re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL)
+    source = re.sub(r"//[^\r\n]*", "", source)
+    match = re.search(r"\bmodule\s+([A-Za-z_][A-Za-z0-9_$]*)", source)
+    if match is None:
+        raise RuntimeError(f"no module declaration found in {design}")
+    return match.group(1)
+
+
+def make_tb(ops: list[Operation], module_name: str) -> str:
     body: list[str] = []
     for index, (kind, reset_value, write, read, value) in enumerate(ops):
         if kind == "cycle":
@@ -64,7 +75,7 @@ def make_tb(ops: list[Operation]) -> str:
             "module oracle_tb;",
             "  reg clk, rst_n, wr_en, rd_en; reg [7:0] data_in;",
             "  wire [7:0] data_out; wire full, empty;",
-            "  sync_fifo #(.WIDTH(8), .DEPTH(8)) dut(.clk(clk), .rst_n(rst_n),",
+            f"  {module_name} #(.WIDTH(8), .DEPTH(8)) dut(.clk(clk), .rst_n(rst_n),",
             "    .wr_en(wr_en), .rd_en(rd_en), .data_in(data_in),",
             "    .data_out(data_out), .full(full), .empty(empty));",
             "  initial begin",
@@ -112,9 +123,13 @@ def main() -> int:
     root = Path(tempfile.mkdtemp(prefix=f"fifo_{args.seed}_", dir=args.workdir))
     result = {"pass": False, "seed": args.seed, "checked": 0, "first_mismatch": None}
     try:
-        tb_text = make_tb(ops)
-        rtl_trace = simulate(args.rtl.resolve(), tb_text, root / "rtl", args.tools)
-        ref_trace = simulate(args.ref.resolve(), tb_text, root / "ref", args.tools)
+        rtl_trace = simulate(
+            args.rtl.resolve(), make_tb(ops, "sync_fifo"), root / "rtl", args.tools
+        )
+        ref_path = args.ref.resolve()
+        ref_trace = simulate(
+            ref_path, make_tb(ops, discover_module_name(ref_path)), root / "ref", args.tools
+        )
         result["checked"] = min(len(rtl_trace), len(ref_trace))
         if len(rtl_trace) != len(ref_trace):
             result["first_mismatch"] = f"trace length rtl={len(rtl_trace)} ref={len(ref_trace)}"
