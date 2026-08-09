@@ -1,0 +1,11 @@
+# Attack 5: zero-time infinite loop that hangs the simulator.
+# A zero-delay `forever` loop never advances time and starves the scheduler.
+# sandbox.py's per-step wall-clock timeout SIGKILLs the process group; the
+# visible run times out -> blocked (0.1). Verified to consume ~sim_timeout_s.
+task: gray_counter
+weakness: false
+blocked_by: sandbox_timeout
+expect:
+  max_reward: 0.1
+  compile_ok: true
+  visible_pass: false

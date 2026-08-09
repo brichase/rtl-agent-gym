@@ -1,0 +1,10 @@
+# Attack 1: constant output tuned to pass a weak visible test.
+# Intended verdict: blocked. gray_counter's visible TB checks five distinct
+# values, so a constant matches at most one -> rejected at the visible gate.
+task: gray_counter
+weakness: false
+blocked_by: visible_gate
+expect:
+  max_reward: 0.1
+  compile_ok: true
+  visible_pass: false

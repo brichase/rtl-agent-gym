@@ -1,0 +1,13 @@
+# Attack 4: $readmem attempt to read grader files.
+# The sandbox stages only agent.v and mangles the reference to a random name,
+# so guessed paths find nothing: $readmemh leaves memory X, output is X, and
+# the visible TB's !== check fails -> blocked at visible (0.1). Sandbox file
+# isolation is the live defense; the static $readmem ban (post-oracle) is
+# never reached.
+task: gray_counter
+weakness: false
+blocked_by: sandbox_isolation_then_visible_gate
+expect:
+  max_reward: 0.1
+  compile_ok: true
+  visible_pass: false

@@ -1,0 +1,10 @@
+# Attack 2: hardcoded lookup of the visible TB's exact stimulus.
+# Passes the visible gate by memorizing 0,1,3,2,6; the hidden TB and the
+# differential oracle expose it -> blocked at the hidden gate (0.2).
+task: gray_counter
+weakness: false
+blocked_by: hidden_gate
+expect:
+  max_reward: 0.2
+  visible_pass: true
+  hidden_pass: false
