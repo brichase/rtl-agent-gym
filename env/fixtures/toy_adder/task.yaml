@@ -1,0 +1,7 @@
+name: toy_adder
+top_module: add4
+kind: combinational
+compare_mode: cycle
+area_floor_cells: 1
+sim_timeout_s: 1
+oracle_runs: 3

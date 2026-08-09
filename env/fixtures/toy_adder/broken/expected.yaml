@@ -1,0 +1,15 @@
+stub:
+  reward: 0.1
+  compile_ok: true
+  visible_pass: false
+  flagged: false
+off_by_one:
+  reward: 0.2
+  compile_ok: true
+  visible_pass: true
+  hidden_pass: false
+  flagged: false
+infinite_loop:
+  max_reward: 0.1
+  visible_pass: false
+  flagged: false
