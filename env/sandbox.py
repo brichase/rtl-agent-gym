@@ -29,6 +29,7 @@ class SandboxResult:
     stdout: str
     timed_out: bool
     elapsed_ms: float
+    truncated: bool = False
 
     @property
     def ok(self) -> bool:
@@ -72,7 +73,7 @@ def _run_one(
     cwd: Path,
     timeout_s: float,
     environment: Mapping[str, str] | None,
-) -> tuple[int, bytes, bool]:
+) -> tuple[int, bytes, bool, bool]:
     process = subprocess.Popen(
         list(command),
         cwd=cwd,
@@ -116,7 +117,7 @@ def _run_one(
         if len(captured) + len(TRUNCATION_MARKER) > OUTPUT_LIMIT:
             del captured[OUTPUT_LIMIT - len(TRUNCATION_MARKER) :]
         captured.extend(TRUNCATION_MARKER)
-    return process.returncode, bytes(captured), timed_out
+    return process.returncode, bytes(captured), timed_out, truncated
 
 
 def run_commands(
@@ -131,6 +132,7 @@ def run_commands(
     combined = bytearray()
     returncode = 0
     timed_out = False
+    truncated = False
     with tempfile.TemporaryDirectory(prefix="rtl-gym-") as temporary:
         root = Path(temporary)
         _stage_files(root, files)
@@ -139,16 +141,19 @@ def run_commands(
             if remaining <= 0:
                 returncode, timed_out = -signal.SIGKILL, True
                 break
-            returncode, output, command_timed_out = _run_one(
+            returncode, output, command_timed_out, command_truncated = _run_one(
                 command, root, remaining, environment
             )
+            truncated = truncated or command_truncated
             available = OUTPUT_LIMIT - len(combined)
             if available > 0:
                 combined.extend(output[:available])
-            if len(output) > available and not combined.endswith(TRUNCATION_MARKER):
-                if len(combined) + len(TRUNCATION_MARKER) > OUTPUT_LIMIT:
-                    del combined[OUTPUT_LIMIT - len(TRUNCATION_MARKER) :]
-                combined.extend(TRUNCATION_MARKER)
+            if len(output) > available:
+                truncated = True
+                if not combined.endswith(TRUNCATION_MARKER):
+                    if len(combined) + len(TRUNCATION_MARKER) > OUTPUT_LIMIT:
+                        del combined[OUTPUT_LIMIT - len(TRUNCATION_MARKER) :]
+                    combined.extend(TRUNCATION_MARKER)
             timed_out = timed_out or command_timed_out
             if returncode != 0 or timed_out:
                 break
@@ -161,6 +166,7 @@ def run_commands(
         stdout=combined.decode("utf-8", errors="replace"),
         timed_out=timed_out,
         elapsed_ms=(time.monotonic() - started) * 1000.0,
+        truncated=truncated,
     )
 
 

@@ -6,11 +6,12 @@ import tempfile
 import unittest
 
 from env import sandbox
-from env.grade import grade, static_sanity
+from env.grade import grade, load_task, run_testbench, static_sanity
 from env.runner import EpisodeState
 
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "toy_adder"
+ROOT = Path(__file__).resolve().parents[2]
 
 
 class GradeLadderTests(unittest.TestCase):
@@ -73,6 +74,26 @@ class GradeLadderTests(unittest.TestCase):
         self.assertTrue(result.ok)
         self.assertLessEqual(len(result.stdout.encode("utf-8")), sandbox.OUTPUT_LIMIT)
         self.assertIn("[truncated]", result.stdout)
+        self.assertTrue(result.truncated)
+
+    def test_output_flood_fails_truncated_tb_gates(self) -> None:
+        flood = ROOT / "redteam" / "06_output_flood" / "submission.v"
+        result = grade(ROOT / "tasks" / "gray_counter", flood)
+        self.assertFalse(result["visible_pass"])
+        self.assertFalse(result["hidden_pass"])
+        self.assertFalse(result["oracle_pass"])
+        self.assertLessEqual(result["reward"], 0.2)
+        self.assertTrue(result["flagged"])
+        self.assertIn("visible testbench output truncated", result["fail_reason"])
+        self.assertIn("hidden testbench output truncated", result["fail_reason"])
+
+        reference = FIXTURE / "ref" / "ref.v"
+        rtl = reference.read_text(encoding="utf-8")
+        normal = grade(FIXTURE, reference)
+        self.assertGreaterEqual(normal["reward"], 0.95)
+        task = load_task(FIXTURE)
+        for testbench in (FIXTURE / "tb_visible.v", FIXTURE / "tb_hidden.v"):
+            self.assertFalse(run_testbench(task, rtl, testbench)["truncated"])
 
 
 if __name__ == "__main__":
