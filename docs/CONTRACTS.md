@@ -104,6 +104,26 @@ submissions can't name it. No network use by graded code.
 - `submit(rtl: str) -> {accepted: true}` — records final submission, ends episode.
 All routed through `latency.py`: wall-clock ms per call + SHA-256(content)→result cache.
 
+## agent/ episode API (consumed by eval/)
+
+`agent/loop.py` exposes:
+```python
+run_episode(task_dir: Path, model_id: str, condition: str,  # 'single_shot' | 'agentic'
+            trial: int, out_dir: Path, max_turns: int = 10) -> dict  # one results row
+```
+- Backend resolved from model_id: `claude-*` → Anthropic SDK tool loop; `gpt-*` →
+  `codex exec --json` with an MCP server exposing run_sim/run_synth/submit;
+  `mock` → scripted MockBackend, no network (for tests).
+- single_shot = same prompt, no tools, one generation; RTL parsed from the final
+  code block. agentic = tool loop, episode ends on submit() or max_turns.
+- Tool-call budget for codex episodes enforced inside the MCP server (after budget,
+  tools return "budget exhausted — submit now").
+- Transcript (every message/tool call/result, verbatim) →
+  `out_dir/transcripts/<task>_<model>_<condition>_<trial>.jsonl`.
+- Never raises on episode failure; returns the row with an `error` field set.
+- Grading happens inside run_episode via env.grade on the submitted RTL; the row is
+  complete per the results schema below.
+
 ## redteam layout
 
 ```
