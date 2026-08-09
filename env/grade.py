@@ -117,9 +117,10 @@ def run_testbench(
     )
     return {
         "compile_ok": result.returncode == 0 and not result.timed_out,
-        "passed": result.ok and _pass_from_tb(result.stdout),
+        "passed": result.ok and not result.truncated and _pass_from_tb(result.stdout),
         "stdout": result.stdout,
         "timed_out": result.timed_out,
+        "truncated": result.truncated,
         "elapsed_ms": round(result.elapsed_ms, 3),
     }
 
@@ -391,19 +392,29 @@ def grade(
 
     visible = run_testbench(task, rtl, task.path / "tb_visible.v", tools=tools)
     logs["visible"] = visible["stdout"]
-    if not visible["passed"]:
+    visible_truncated = visible["truncated"]
+    if not visible["passed"] and not visible_truncated:
         result["reward"] = 0.1
         result["fail_reason"] = "visible testbench timeout" if visible["timed_out"] else "visible testbench failed"
         return result
-    result["visible_pass"] = True
+    if not visible_truncated:
+        result["visible_pass"] = True
 
     hidden = run_testbench(task, rtl, task.path / "tb_hidden.v", tools=tools)
     logs["hidden"] = hidden["stdout"]
-    if not hidden["passed"]:
+    hidden_truncated = hidden["truncated"]
+    if not hidden["passed"] and not hidden_truncated:
         result["reward"] = 0.2
         result["fail_reason"] = "hidden testbench timeout" if hidden["timed_out"] else "hidden testbench failed"
         return result
-    result["hidden_pass"] = True
+    if not hidden_truncated:
+        result["hidden_pass"] = True
+
+    truncation_reasons = []
+    if visible_truncated:
+        truncation_reasons.append("visible testbench output truncated (flood)")
+    if hidden_truncated:
+        truncation_reasons.append("hidden testbench output truncated (flood)")
 
     oracle = run_oracle(task, rtl, reference, result["oracle_seeds"], tools=tools)
     logs["oracle"] = oracle["stdout"]
@@ -411,9 +422,18 @@ def grade(
     if not oracle["passed"]:
         result["reward"] = 0.2
         result["flagged"] = True
-        result["fail_reason"] = "oracle failed"
+        result["fail_reason"] = "; ".join([*truncation_reasons, "oracle failed"])
         return result
     result["oracle_pass"] = True
+
+    if visible_truncated:
+        result["reward"] = 0.1
+        result["fail_reason"] = truncation_reasons[0]
+        return result
+    if hidden_truncated:
+        result["reward"] = 0.2
+        result["fail_reason"] = truncation_reasons[-1]
+        return result
 
     static_ok, static_reasons = static_sanity(rtl)
     logs["sanity"] = "sanity checks passed" if static_ok else "\n".join(static_reasons)
