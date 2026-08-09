@@ -66,6 +66,9 @@ class CodexBackend:
                 "/data/projects/rtl-agent-gym/toolchain/oss-cad-suite/bin",
             )
             configs = (
+                # codex exec auto-cancels MCP approval elicitations (exec/src/lib.rs,
+                # rust-v0.147.0); per-server approve mode is the only unattended path.
+                ("mcp_servers.rtlgym.default_tools_approval_mode", "approve"),
                 ("mcp_servers.rtlgym.command", PYTHON),
                 ("mcp_servers.rtlgym.args", '["-m","agent.mcp_server"]'),
                 ("mcp_servers.rtlgym.env.RTL_GYM_TASK_DIR", str(task_dir.resolve())),

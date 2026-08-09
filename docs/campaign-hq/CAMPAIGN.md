@@ -54,7 +54,9 @@ Scope discipline: plan §1 "Out" list is binding. Finish early → deepen analys
 |---|---|---|---|---|---|---|
 | env-core | codex companion (gpt-5.6-sol high) | campaign/env-core | .worktrees/env-core | task-msm1ytx5-w1x4oz | 2026-08-09 | done, verified, merged (11 min) |
 | tasks-batch1 | codex companion (gpt-5.6-sol high) | campaign/tasks-batch1 | .worktrees/tasks-batch1 | task-msm1ytzw-j1hkac | 2026-08-09 | done, verified, merged (11 min) |
-| oracle-fix (module-name discovery) | codex companion resume | campaign/tasks-batch1 | .worktrees/tasks-batch1 | task-msm2j3qh-d1ezxx | 2026-08-09 | running (~5 min expected) |
+| oracle-fix (module-name discovery) | codex companion resume | campaign/tasks-batch1 | .worktrees/tasks-batch1 | task-msm2j3qh-d1ezxx | 2026-08-09 | done, merged; smoke 15/15 |
+| agent-loop | codex companion (gpt-5.6-sol high) | campaign/agent-loop | .worktrees/agent-loop | task-msm2orkv-c9cqr6 | 2026-08-09 | running (~30 min expected) |
+| eval-harness | codex companion (gpt-5.6-sol high) | campaign/eval-harness | .worktrees/eval-harness | task-msm2ornb-jfmsr3 | 2026-08-09 | done, verified, committed; merge held for agent-loop |
 
 ## Verified environment (kickoff preflight 2026-08-09)
 - OSS CAD Suite 2026-08-09 (linux-x64) at `toolchain/oss-cad-suite/` (gitignored, 2.5G): iverilog 14.0-devel s20260301, Yosys 0.68+40. Adder smoke: sim PASS, stat 20 cells.
