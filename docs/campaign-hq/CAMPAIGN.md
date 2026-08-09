@@ -56,7 +56,9 @@ Scope discipline: plan §1 "Out" list is binding. Finish early → deepen analys
 | tasks-batch1 | codex companion (gpt-5.6-sol high) | campaign/tasks-batch1 | .worktrees/tasks-batch1 | task-msm1ytzw-j1hkac | 2026-08-09 | done, verified, merged (11 min) |
 | oracle-fix (module-name discovery) | codex companion resume | campaign/tasks-batch1 | .worktrees/tasks-batch1 | task-msm2j3qh-d1ezxx | 2026-08-09 | done, merged; smoke 15/15 |
 | agent-loop | codex companion (gpt-5.6-sol high) | campaign/agent-loop | .worktrees/agent-loop | task-msm2orkv-c9cqr6 | 2026-08-09 | running (~30 min expected) |
-| eval-harness | codex companion (gpt-5.6-sol high) | campaign/eval-harness | .worktrees/eval-harness | task-msm2ornb-jfmsr3 | 2026-08-09 | done, verified, committed; merge held for agent-loop |
+| eval-harness | codex companion (gpt-5.6-sol high) | campaign/eval-harness | .worktrees/eval-harness | task-msm2ornb-jfmsr3 | 2026-08-09 | done, verified, merged |
+| tasks-batch2 | codex companion (gpt-5.6-sol high) | campaign/tasks-batch2 | .worktrees/tasks-batch2 | task-msm3xvbq-wv31up | 2026-08-09 | running (~40 min expected) |
+| redteam | Claude general-purpose (rerouted from Codex — content filter) | campaign/redteam | .worktrees/redteam | agent a4b338020185cf808 | 2026-08-09 | running |
 
 ## Verified environment (kickoff preflight 2026-08-09)
 - OSS CAD Suite 2026-08-09 (linux-x64) at `toolchain/oss-cad-suite/` (gitignored, 2.5G): iverilog 14.0-devel s20260301, Yosys 0.68+40. Adder smoke: sim PASS, stat 20 cells.
