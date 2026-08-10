@@ -1,6 +1,6 @@
 # Campaign: rtl-agent-gym
 Goal: Build the adversarially hardened RTL-agent benchmark per `rtl-agent-gym-weekend-plan-v2.md` — 6 verified tasks, red-teamed grader, synthesis-cost proxy rewards, single-shot vs tool-loop ablation across claude-opus-5 and gpt-5.6-luna(max).
-Status: phase 4 COMPLETE. All 6 tasks + 7 red-team attacks + flood mitigation merged, smoke 34/34, unit tests green. All worktrees clean. BLOCKED ON USER: (1) 9 review decisions D1-D9 (artifact 522e5c82), (2) ANTHROPIC_API_KEY for phase 5 full eval. Pilot done (metric discriminates: fifo 0.70 single-shot vs 0.999 agentic). Red-team: 6 blocked + 1 weakness found AND mitigated.
+Status: phase 4++ COMPLETE. Wave 4 (external-review fixes) merged: LEAK CLOSED (agent cwd isolated, canary leakage-check passes), DEPTH/WIDTH parameterization enforced (hardcoded-8 fifo 0.97→0.2), AXI oracle stall-tolerant + same-edge coverage, first_failure_stage + protocol_ok fields added. Smoke 36/36, unit tests green. User RATIFIED all 4 semantic conventions. Models: gpt-5.6-luna@max + gpt-5.6-sol@high (both Codex; NO Anthropic key needed). Pilot re-running with isolated backend (old pilot numbers contaminated by leak — do not cite). Next: full eval on user go.
 
 Spec: `rtl-agent-gym-weekend-plan-v2.md` (root). Interface contracts: `docs/CONTRACTS.md`.
 Scope discipline: plan §1 "Out" list is binding. Finish early → deepen analysis, never widen.
