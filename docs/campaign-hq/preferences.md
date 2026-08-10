@@ -10,7 +10,8 @@
 - Permission envelope: companion tasks run with --write (`.git` read-only → conductor commits); no ANTHROPIC_API_KEY until user exports it
 
 ## User decisions (2026-08-09)
-- Eval models: claude-opus-5 + gpt-5.6-luna at model_reasoning_effort=max (user said "codex luna max")
+- Eval models (UPDATED 2026-08-09): gpt-5.6-luna@max + gpt-5.6-sol@high — BOTH via Codex CLI. User swapped out claude-opus-5 for gpt-5.6-sol@high ("more credits there"). Consequence: NO ANTHROPIC_API_KEY needed anywhere; whole eval runs on the Codex plan. Cross-model axis is now two capable tiers (luna-max vs sol-high) rather than small-vs-large — headline remains the single-shot vs agentic ablation.
+- (superseded) Eval models: claude-opus-5 + gpt-5.6-luna at model_reasoning_effort=max
 - Eval Codex backend: raw `codex exec` + MCP tools server — NOT codex:rescue plugin (conductor evaluated both; plugin is a one-shot forwarder)
 - Hidden TB/oracle review: user reviews in two batches ({1,2,4}, then {3,5,6}); conductor preps review docs
 - API key: user exports when eval phase starts; build phases stay API-free
