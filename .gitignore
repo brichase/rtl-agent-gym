@@ -6,6 +6,7 @@ __pycache__/
 *.vcd
 .worktrees/
 docs/campaign-hq/out/
-results/full/*/transcripts/
-results/pilot*/transcripts/
-results/*/episodes/
+results/**/episodes/
+results/**/transcripts/
+results/pilot/
+results/pilot2/
