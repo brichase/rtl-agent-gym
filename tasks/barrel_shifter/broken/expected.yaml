@@ -2,3 +2,5 @@ stub:
   max_reward: 0.1
 off_by_one:
   max_reward: 0.2
+low3bits:
+  max_reward: 0.2
