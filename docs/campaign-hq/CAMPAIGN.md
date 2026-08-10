@@ -60,6 +60,12 @@ Scope discipline: plan §1 "Out" list is binding. Finish early → deepen analys
 | tasks-batch2 | codex companion (gpt-5.6-sol high) | campaign/tasks-batch2 | (removed) | task-msm3xvbq-wv31up | 2026-08-09 | done, verified, merged; worktree cleaned |
 | redteam | Claude general-purpose (rerouted from Codex — content filter) | campaign/redteam | (removed) | agent a4b338020185cf808 | 2026-08-09 | done, verified, merged; FINDING: flood weakness |
 | harden-flood | codex companion (gpt-5.6-sol high) | campaign/harden-flood | (removed) | task-msm4g812-ngnma1 | 2026-08-09 | done, verified, merged; smoke 34/34 |
+| harness-integrity (LEAK FIX) | codex companion | campaign/harness-integrity | .worktrees/harness-integrity | task-msmljm61-h1ktws | 2026-08-09 | running (watch for content-filter refusal → reroute Claude) |
+| param-coverage | codex companion | campaign/param-coverage | .worktrees/param-coverage | task-msmljm8m-cufl01 | 2026-08-09 | running |
+| axi-oracle | codex companion | campaign/axi-oracle | .worktrees/axi-oracle | task-msmljmbi-sc0507 | 2026-08-09 | running |
+
+## Wave 4 origin: external agent review (2026-08-09)
+Findings verified by conductor: (1) LEAK — codex_backend cwd=repo_root + read-only sandbox lets agent read ref.v/hidden/oracle; pilot transcripts confirm. Agentic pilot numbers CONTAMINATED, must re-run after fix. (2) FIFO DEPTH hole — hardcoded-8 fifo scores 0.97 (verified). (3) barrel low-3-bits: conductor could NOT reproduce reward 1.0 (got 0.2); fixing coverage anyway. (4) AXI oracle over-constrains AW/W order + immediate-ready. Semantic conventions (D2/D5/D6/D7) endorsed by reviewer; awaiting user's single bundled ratification.
 
 ## Verified environment (kickoff preflight 2026-08-09)
 - OSS CAD Suite 2026-08-09 (linux-x64) at `toolchain/oss-cad-suite/` (gitignored, 2.5G): iverilog 14.0-devel s20260301, Yosys 0.68+40. Adder smoke: sim PASS, stat 20 cells.
