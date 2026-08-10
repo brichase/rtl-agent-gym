@@ -4,3 +4,5 @@ off_by_one:
   max_reward: 0.2
 wrong_reset:
   max_reward: 0.2
+hardcoded_depth:
+  max_reward: 0.2

@@ -1,9 +1,13 @@
 `timescale 1ns/1ps
 
-module tb_hidden;
-    localparam WIDTH = 8;
-    localparam DEPTH = 8;
-    reg clk;
+module fifo_hidden_checker #(
+    parameter WIDTH = 8,
+    parameter DEPTH = 8
+) (
+    input wire clk,
+    output reg done,
+    output reg [31:0] failures
+);
     reg rst_n;
     reg wr_en;
     reg rd_en;
@@ -19,7 +23,6 @@ module tb_hidden;
     integer model_head;
     integer model_tail;
     integer model_count;
-    integer failures;
     integer i;
     integer do_read_model;
     integer do_write_model;
@@ -28,20 +31,22 @@ module tb_hidden;
         .clk(clk), .rst_n(rst_n), .wr_en(wr_en), .rd_en(rd_en),
         .data_in(data_in), .data_out(data_out), .full(full), .empty(empty)
     );
-    always #5 clk = ~clk;
 
     task check_model;
         begin
             if (full !== (model_count == DEPTH)) begin
-                $display("TB_FAIL: full=%b at model occupancy %0d", full, model_count);
+                $display("TB_FAIL: WIDTH=%0d DEPTH=%0d full=%b at model occupancy %0d",
+                         WIDTH, DEPTH, full, model_count);
                 failures = failures + 1;
             end
             if (empty !== (model_count == 0)) begin
-                $display("TB_FAIL: empty=%b at model occupancy %0d", empty, model_count);
+                $display("TB_FAIL: WIDTH=%0d DEPTH=%0d empty=%b at model occupancy %0d",
+                         WIDTH, DEPTH, empty, model_count);
                 failures = failures + 1;
             end
             if (data_out !== model_data_out) begin
-                $display("TB_FAIL: data_out=%h expected=%h", data_out, model_data_out);
+                $display("TB_FAIL: WIDTH=%0d DEPTH=%0d data_out=%h expected=%h",
+                         WIDTH, DEPTH, data_out, model_data_out);
                 failures = failures + 1;
             end
         end
@@ -74,7 +79,7 @@ module tb_hidden;
     endtask
 
     initial begin
-        clk = 1'b0;
+        done = 1'b0;
         rst_n = 1'b0;
         wr_en = 1'b0;
         rd_en = 1'b0;
@@ -101,13 +106,13 @@ module tb_hidden;
         transact(1'b0, 1'b1, 8'h00);
 
         // Mid-fill simultaneous operation leaves occupancy unchanged.
-        for (i = 0; i < 4; i = i + 1)
+        for (i = 0; i < ((DEPTH + 1) / 2); i = i + 1)
             transact(1'b1, 1'b0, 8'h30 + i);
         transact(1'b1, 1'b1, 8'h44);
-        for (i = 0; i < 4; i = i + 1)
+        for (i = 0; i < ((DEPTH + 1) / 2); i = i + 1)
             transact(1'b0, 1'b1, 8'h00);
 
-        // More than twice DEPTH successful writes and reads exercise both pointers.
+        // More than twice DEPTH successful writes and reads exercise pointer wraparound.
         for (i = 0; i < (2*DEPTH + 5); i = i + 1) begin
             transact(1'b1, 1'b0, i + 8'ha0);
             transact(1'b0, 1'b1, 8'h00);
@@ -122,7 +127,8 @@ module tb_hidden;
         @(negedge clk); #2 rst_n = 1'b0; #1;
         if ((full !== saved_full) || (empty !== saved_empty) ||
             (data_out !== saved_data)) begin
-            $display("TB_FAIL: synchronous reset changed state between rising edges");
+            $display("TB_FAIL: WIDTH=%0d DEPTH=%0d synchronous reset changed state between rising edges",
+                     WIDTH, DEPTH);
             failures = failures + 1;
         end
         @(posedge clk);
@@ -137,8 +143,31 @@ module tb_hidden;
         rd_en = 1'b0;
         transact(1'b1, 1'b0, 8'hd5);
         transact(1'b0, 1'b1, 8'h00);
+        done = 1'b1;
+    end
+endmodule
 
-        if (failures == 0)
+module tb_hidden;
+    reg clk;
+    wire done_default;
+    wire done_parameterized;
+    wire [31:0] failures_default;
+    wire [31:0] failures_parameterized;
+
+    fifo_hidden_checker #(.WIDTH(8), .DEPTH(8)) check_default (
+        .clk(clk), .done(done_default), .failures(failures_default)
+    );
+    fifo_hidden_checker #(.WIDTH(4), .DEPTH(5)) check_parameterized (
+        .clk(clk), .done(done_parameterized), .failures(failures_parameterized)
+    );
+
+    always #5 clk = ~clk;
+
+    initial begin
+        clk = 1'b0;
+        wait (done_default && done_parameterized);
+        #1;
+        if ((failures_default == 0) && (failures_parameterized == 0))
             $display("TB_ALL_PASS");
         $finish;
     end

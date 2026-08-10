@@ -86,6 +86,16 @@ module tb_hidden;
         check_width_5(5'b10001, 5'd4, 2'b10, 5'b11000);
         check_width_5(5'b10001, 5'd4, 2'b11, 5'b00011);
         check_width_5(5'b10110, 5'd5, 2'b10, 5'b10110);
+        // WIDTH=5 requires modulo-5 rotation, not truncation to three low bits.
+        check_width_5(5'b10110, 5'd8, 2'b10, 5'b10101);
+        check_width_5(5'b10110, 5'd8, 2'b11, 5'b11010);
+        check_width_5(5'b10110, 5'd9, 2'b10, 5'b01011);
+        check_width_5(5'b10110, 5'd9, 2'b11, 5'b01101);
+        // Logical shifts at or beyond WIDTH always produce zero.
+        check_width_5(5'b10110, 5'd8, 2'b00, 5'b00000);
+        check_width_5(5'b10110, 5'd8, 2'b01, 5'b00000);
+        check_width_5(5'b10110, 5'd9, 2'b00, 5'b00000);
+        check_width_5(5'b10110, 5'd9, 2'b01, 5'b00000);
         if (failures == 0)
             $display("TB_ALL_PASS");
         $finish;

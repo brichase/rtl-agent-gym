@@ -18,26 +18,34 @@ DEFAULT_TOOLS = Path("/data/projects/rtl-agent-gym/toolchain/oss-cad-suite/bin")
 Operation = tuple[str, int, int, int, int]
 
 
-def operations(seed: int) -> list[Operation]:
+def oracle_parameters(seed: int) -> tuple[int, int]:
+    """Seed 2 enforces the non-default, non-power-of-two configuration."""
+    return (4, 5) if seed == 2 else (8, 8)
+
+
+def operations(seed: int, width: int, depth: int) -> list[Operation]:
     rng = random.Random(seed)
+    value_limit = 1 << width
     result: list[Operation] = [("cycle", 0, 0, 0, 0), ("cycle", 0, 0, 0, 0)]
-    result.extend(("cycle", 1, 1, 0, 0x10 + i) for i in range(8))
-    result.append(("cycle", 1, 1, 0, 0xEE))
-    result.append(("cycle", 1, 1, 1, 0x80))
-    result.extend(("cycle", 1, 0, 1, 0) for _ in range(8))
+    result.extend(("cycle", 1, 1, 0, (0x10 + i) % value_limit) for i in range(depth))
+    result.append(("cycle", 1, 1, 0, 0xEE % value_limit))
+    result.append(("cycle", 1, 1, 1, 0x80 % value_limit))
+    result.extend(("cycle", 1, 0, 1, 0) for _ in range(depth))
     result.append(("cycle", 1, 0, 1, 0))
-    result.append(("cycle", 1, 1, 1, 0x91))
+    result.append(("cycle", 1, 1, 1, 0x91 % value_limit))
     result.append(("cycle", 1, 0, 1, 0))
-    for i in range(21):
-        result.append(("cycle", 1, 1, 0, (0xA0 + i) & 0xFF))
+    for i in range(2 * depth + 5):
+        result.append(("cycle", 1, 1, 0, (0xA0 + i) % value_limit))
         result.append(("cycle", 1, 0, 1, 0))
-    result.extend(("cycle", 1, 1, 0, value) for value in (0xC1, 0xC2, 0xC3))
-    result.append(("cycle", 1, 1, 1, 0xD0))
+    result.extend(("cycle", 1, 1, 0, value % value_limit) for value in (0xC1, 0xC2, 0xC3))
+    result.append(("cycle", 1, 1, 1, 0xD0 % value_limit))
     result.append(("probe_reset", 0, 0, 0, 0))
     result.extend(("cycle", 0, 0, 0, 0) for _ in range(2))
     for phase in range(5):
         for _ in range(rng.randint(18, 35)):
-            result.append(("cycle", 1, rng.randrange(2), rng.randrange(2), rng.randrange(256)))
+            result.append(
+                ("cycle", 1, rng.randrange(2), rng.randrange(2), rng.randrange(value_limit))
+            )
         if phase != 4:
             result.append(("probe_reset", 0, 0, 0, 0))
             result.extend(("cycle", 0, 0, 0, 0) for _ in range(rng.randint(1, 3)))
@@ -54,13 +62,16 @@ def discover_module_name(design: Path) -> str:
     return match.group(1)
 
 
-def make_tb(ops: list[Operation], module_name: str) -> str:
+def make_tb(
+    ops: list[Operation], module_name: str, width: int, depth: int
+) -> str:
     body: list[str] = []
+    hex_digits = (width + 3) // 4
     for index, (kind, reset_value, write, read, value) in enumerate(ops):
         if kind == "cycle":
             body.append(
                 f"    rst_n=1'b{reset_value}; wr_en=1'b{write}; rd_en=1'b{read}; "
-                f"data_in=8'h{value:02x}; #4; clk=1'b1; #1; "
+                f"data_in={width}'h{value:0{hex_digits}x}; #4; clk=1'b1; #1; "
                 f"$display(\"TRACE {index} %b %b %h\", full, empty, data_out); "
                 "#4; clk=1'b0; #1;"
             )
@@ -73,9 +84,10 @@ def make_tb(ops: list[Operation], module_name: str) -> str:
         [
             "`timescale 1ns/1ps",
             "module oracle_tb;",
-            "  reg clk, rst_n, wr_en, rd_en; reg [7:0] data_in;",
-            "  wire [7:0] data_out; wire full, empty;",
-            f"  {module_name} #(.WIDTH(8), .DEPTH(8)) dut(.clk(clk), .rst_n(rst_n),",
+            f"  localparam WIDTH={width}; localparam DEPTH={depth};",
+            "  reg clk, rst_n, wr_en, rd_en; reg [WIDTH-1:0] data_in;",
+            "  wire [WIDTH-1:0] data_out; wire full, empty;",
+            f"  {module_name} #(.WIDTH(WIDTH), .DEPTH(DEPTH)) dut(.clk(clk), .rst_n(rst_n),",
             "    .wr_en(wr_en), .rd_en(rd_en), .data_in(data_in),",
             "    .data_out(data_out), .full(full), .empty(empty));",
             "  initial begin",
@@ -118,17 +130,31 @@ def main() -> int:
     parser.add_argument("--workdir", required=True, type=Path)
     parser.add_argument("--tools", type=Path, default=DEFAULT_TOOLS)
     args = parser.parse_args()
-    ops = operations(args.seed)
+    width, depth = oracle_parameters(args.seed)
+    ops = operations(args.seed, width, depth)
     args.workdir.mkdir(parents=True, exist_ok=True)
     root = Path(tempfile.mkdtemp(prefix=f"fifo_{args.seed}_", dir=args.workdir))
-    result = {"pass": False, "seed": args.seed, "checked": 0, "first_mismatch": None}
+    result = {
+        "pass": False,
+        "seed": args.seed,
+        "width": width,
+        "depth": depth,
+        "checked": 0,
+        "first_mismatch": None,
+    }
     try:
         rtl_trace = simulate(
-            args.rtl.resolve(), make_tb(ops, "sync_fifo"), root / "rtl", args.tools
+            args.rtl.resolve(),
+            make_tb(ops, "sync_fifo", width, depth),
+            root / "rtl",
+            args.tools,
         )
         ref_path = args.ref.resolve()
         ref_trace = simulate(
-            ref_path, make_tb(ops, discover_module_name(ref_path)), root / "ref", args.tools
+            ref_path,
+            make_tb(ops, discover_module_name(ref_path), width, depth),
+            root / "ref",
+            args.tools,
         )
         result["checked"] = min(len(rtl_trace), len(ref_trace))
         if len(rtl_trace) != len(ref_trace):
