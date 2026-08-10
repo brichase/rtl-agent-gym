@@ -48,6 +48,13 @@ Scope discipline: plan §1 "Out" list is binding. Finish early → deepen analys
 - [ ] MIT license, pin repo, resume bullet
 - Fallback order if time collapses (plan §7): cut task 6 → 5 trials→3 → task 5. Never cut: two models, two conditions, red team, write-up.
 
+## OVERNIGHT RUN (user asleep until ~06:00, 2026-08-10) — authorized "keep working"
+Guardrails honored: no remote (none exists), no destructive ops, everything self-verified before commit, additive only.
+- Full eval LAUNCHED: gpt-5.6-luna@max + gpt-5.6-sol@high, 6 tasks × 5 trials × 2 conditions = 60 episodes/model, parallel detached, --resume, monitored. Results → results/full/{luna,sol}/. All on Codex plan (no Anthropic key).
+- Isolated backend (shell disabled) — all overnight numbers are leak-free. Pilot re-run confirmed FIFO agentic 0.999 with protocol_ok=True.
+- Overnight deliverables in progress: README (drafted, numbers pending sweep), LICENSE (done), report tables (on sweep completion), failure analysis + hacks/, fresh-clone repro check.
+- Morning report will be four buckets: merged+verified / awaiting-field-test / blocked / one decision needed first.
+
 ## Fleet (active dispatches)
 
 | Task | Worker | Branch | Worktree | Session | Dispatched | Status |
