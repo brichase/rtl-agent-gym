@@ -11,10 +11,11 @@ import unittest
 from unittest.mock import patch
 
 from agent.backends.anthropic_backend import AnthropicBackend
-from agent.backends.codex_backend import CodexBackend, PYTHON
-from agent.loop import RESULT_FIELDS, run_episode
+from agent.backends.codex_backend import CodexBackend, CodexBackendResult, PYTHON
+from agent.loop import RESULT_FIELDS, _first_failure_stage, run_episode
 from agent.prompts import AGENTIC_PROTOCOL, SINGLE_SHOT_PROTOCOL, build_prompt, prompt_hash
 from env.runner import EpisodeState
+from eval.report import render_report
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -42,6 +43,9 @@ class EpisodeTests(unittest.TestCase):
         self.assertEqual(3, row["tool_calls"])
         self.assertEqual(11, row["tokens_in"])
         self.assertEqual(7, row["tokens_out"])
+        self.assertTrue(row["protocol_ok"])
+        self.assertEqual([], row["protocol_violations"])
+        self.assertEqual("none", row["first_failure_stage"])
         self.assertIsNone(row["error"])
         self.assertTrue(all(field in row for field in RESULT_FIELDS))
         transcript = out_dir / "transcripts" / "toy_adder_mock_agentic_0.jsonl"
@@ -56,6 +60,7 @@ class EpisodeTests(unittest.TestCase):
         self.assertTrue(row["visible_pass"])
         self.assertFalse(row["hidden_pass"])
         self.assertEqual(0.2, row["reward"])
+        self.assertEqual("hidden_sim", row["first_failure_stage"])
         self.assertEqual(1, row["turns"])
         self.assertEqual(0, row["tool_calls"])
 
@@ -63,6 +68,7 @@ class EpisodeTests(unittest.TestCase):
         row, _ = self.run_mock("single_shot", "mock_no_block.json")
         self.assertFalse(row["compile_ok"])
         self.assertEqual(0.0, row["reward"])
+        self.assertEqual("no_submission", row["first_failure_stage"])
         self.assertIn("no parsable Verilog", row["error"])
 
 
@@ -78,6 +84,29 @@ class PromptTests(unittest.TestCase):
         self.assertEqual(prompt_hash(agentic), prompt_hash(build_prompt(TASK, "agentic")))
         self.assertEqual(prompt_hash(agentic), prompt_hash(TASK, "agentic"))
         self.assertEqual(64, len(prompt_hash(agentic)))
+
+
+class ReportAttributionTests(unittest.TestCase):
+    def test_report_counts_first_failure_categories(self) -> None:
+        rows = [
+            {
+                "task": "task",
+                "model_id": "mock",
+                "condition": "agentic",
+                "trial": trial,
+                "reward": 1.0 if stage == "none" else 0.2,
+                "first_failure_stage": stage,
+            }
+            for trial, stage in enumerate(("none", "hidden_sim", "hidden_sim"))
+        ]
+        markdown = render_report(
+            rows,
+            input_path=Path("results/results.jsonl"),
+            output_path=Path("results/report.md"),
+        )
+        self.assertIn("## First-failure attribution", markdown)
+        self.assertIn("| none | 1 | 33.3% |", markdown)
+        self.assertIn("| hidden_sim | 2 | 66.7% |", markdown)
 
 
 class FakeMessages:
@@ -161,6 +190,89 @@ class CodexCommandTests(unittest.TestCase):
         self.assertIn(f'mcp_servers.rtlgym.command="{PYTHON}"', joined)
         self.assertIn('mcp_servers.rtlgym.args=["-m","agent.mcp_server"]', joined)
         self.assertIn('mcp_servers.rtlgym.env.RTL_GYM_MAX_TOOL_CALLS="6"', joined)
+        self.assertIn(f'mcp_servers.rtlgym.env.PYTHONPATH="{ROOT}"', joined)
+
+    def test_run_launches_from_empty_episode_local_cwd(self) -> None:
+        captured: dict[str, object] = {}
+
+        class FakeProcess:
+            pid = 12345
+            returncode = 0
+
+            def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+                del timeout
+                return ('{"type":"turn.completed","usage":{}}\n', "")
+
+        def fake_popen(command: list[str], **kwargs: object) -> FakeProcess:
+            captured["command"] = command
+            captured.update(kwargs)
+            return FakeProcess()
+
+        with tempfile.TemporaryDirectory() as temporary:
+            episode_dir = Path(temporary) / "episode"
+            episode_dir.mkdir()
+            (episode_dir / "agent_cwd").mkdir()
+            (episode_dir / "agent_cwd" / "stale.txt").write_text("stale")
+            state = EpisodeState.load(TASK, workdir=episode_dir)
+            with patch("agent.backends.codex_backend.subprocess.Popen", fake_popen):
+                CodexBackend("gpt-test", effort="low").run(
+                    build_prompt(TASK, "single_shot"),
+                    "single_shot",
+                    TASK,
+                    None,
+                    lambda event: None,
+                    1,
+                    episode_dir=episode_dir,
+                    state=state,
+                )
+            agent_cwd = episode_dir / "agent_cwd"
+            self.assertEqual(agent_cwd, captured["cwd"])
+            self.assertEqual([], list(agent_cwd.iterdir()))
+            self.assertNotEqual(ROOT, captured["cwd"])
+
+    def test_protocol_classifier_flags_shell_once_and_accepts_rtlgym(self) -> None:
+        result = CodexBackendResult()
+        seen_actions: set[str] = set()
+        seen_errors: set[str] = set()
+        shell = {
+            "id": "shell-1",
+            "type": "command_execution",
+            "command": "sed -n '1p' hidden.v",
+        }
+        CodexBackend._inspect_item(shell, result, seen_actions, seen_errors)
+        CodexBackend._inspect_item(shell, result, seen_actions, seen_errors)
+        CodexBackend._inspect_item(
+            {
+                "id": "tool-1",
+                "type": "mcp_tool_call",
+                "server": "rtlgym",
+                "tool": "run_sim",
+                "arguments": {"rtl": "module x; endmodule"},
+                "status": "completed",
+                "result": {"structured_content": {"passed": True}},
+            },
+            result,
+            seen_actions,
+            seen_errors,
+        )
+        self.assertEqual(1, len(result.protocol_violations))
+        self.assertIn("command_execution", result.protocol_violations[0])
+        self.assertFalse(result.tool_argument_errors)
+        self.assertFalse(result.tool_execution_errors)
+
+    def test_first_failure_uses_declared_ladder_order(self) -> None:
+        result = CodexBackendResult(
+            protocol_violations=["command_execution"],
+            tool_argument_errors=["run_sim: invalid rtl argument"],
+        )
+        self.assertEqual(
+            "tool_argument",
+            _first_failure_stage(
+                submitted=True,
+                graded={"first_failure_stage": "hidden_sim"},
+                backend_result=result,
+            ),
+        )
 
 
 class MCPServerTests(unittest.TestCase):
@@ -174,11 +286,12 @@ class MCPServerTests(unittest.TestCase):
                 "RTL_GYM_EPISODE_DIR": temporary.name,
                 "RTL_GYM_TOOLS": TOOLS,
                 "RTL_GYM_MAX_TOOL_CALLS": str(max_calls),
+                "PYTHONPATH": str(ROOT),
             }
         )
         process = subprocess.Popen(
             [PYTHON, "-m", "agent.mcp_server"],
-            cwd=ROOT,
+            cwd=temporary.name,
             env=env,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,

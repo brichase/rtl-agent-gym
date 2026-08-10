@@ -41,6 +41,9 @@ RESULT_FIELDS = (
     "cost_usd",
     "latency_ms_per_call",
     "cache_hits",
+    "protocol_ok",
+    "protocol_violations",
+    "first_failure_stage",
     "tool_versions",
     "prompt_hash",
     "timestamp",
@@ -79,6 +82,9 @@ def _empty_row(
         "cost_usd": None,
         "latency_ms_per_call": [],
         "cache_hits": 0,
+        "protocol_ok": True,
+        "protocol_violations": [],
+        "first_failure_stage": "no_submission",
         "tool_versions": _versions(tools_dir),
         "prompt_hash": None,
         "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -144,9 +150,48 @@ def _apply_grading(row: dict[str, Any], graded: dict[str, Any]) -> None:
         "area_norm",
         "depth_norm",
         "reward",
+        "first_failure_stage",
         "tool_versions",
     ):
         row[field] = graded.get(field)
+
+
+FAILURE_STAGE_ORDER = (
+    "none",
+    "no_submission",
+    "compile",
+    "visible_sim",
+    "tool_argument",
+    "tool_execution",
+    "hidden_sim",
+    "oracle",
+    "sanity",
+    "synthesis",
+    "protocol_violation",
+)
+_FAILURE_RANK = {stage: rank for rank, stage in enumerate(FAILURE_STAGE_ORDER[1:])}
+
+
+def _first_failure_stage(
+    *,
+    submitted: bool,
+    graded: dict[str, Any] | None,
+    backend_result: BackendResult,
+) -> str:
+    candidates: list[str] = []
+    if not submitted:
+        candidates.append("no_submission")
+    if graded is not None:
+        stage = graded.get("first_failure_stage")
+        if stage in _FAILURE_RANK:
+            candidates.append(str(stage))
+    if getattr(backend_result, "tool_argument_errors", []):
+        candidates.append("tool_argument")
+    if getattr(backend_result, "tool_execution_errors", []):
+        candidates.append("tool_execution")
+    if getattr(backend_result, "protocol_violations", []):
+        candidates.append("protocol_violation")
+    return min(candidates, key=_FAILURE_RANK.__getitem__) if candidates else "none"
 
 
 def run_episode(
@@ -172,6 +217,9 @@ def run_episode(
     transcript_path = out_dir / "transcripts" / f"{stem}.jsonl"
     episode_dir = out_dir / "episodes" / stem
     transcript: _Transcript | None = None
+    state: EpisodeState | None = None
+    backend_result = BackendResult()
+    graded: dict[str, Any] | None = None
 
     try:
         if condition not in {"single_shot", "agentic"}:
@@ -204,7 +252,7 @@ def run_episode(
         tools = state.make_tools()
         backend = _backend(model_id)
         if isinstance(backend, CodexBackend):
-            backend_result: BackendResult = backend.run(
+            backend_result = backend.run(
                 prompt,
                 condition,
                 task_dir,
@@ -243,6 +291,10 @@ def run_episode(
                     + list(state.latency.latency_ms_per_call)
                 ),
                 "cache_hits": backend_result.cache_hits + state.latency.cache_hits,
+                "protocol_ok": not getattr(backend_result, "protocol_violations", []),
+                "protocol_violations": list(
+                    getattr(backend_result, "protocol_violations", [])
+                ),
                 "cost_usd": calculate_cost(
                     model_id, backend_result.tokens_in, backend_result.tokens_out
                 ),
@@ -270,4 +322,9 @@ def run_episode(
     finally:
         if transcript is not None:
             transcript.close()
+    row["first_failure_stage"] = _first_failure_stage(
+        submitted=bool(state and state.submitted),
+        graded=graded,
+        backend_result=backend_result,
+    )
     return row

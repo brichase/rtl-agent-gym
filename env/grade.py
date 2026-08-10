@@ -358,6 +358,7 @@ def _empty_result(task: TaskConfig, seed: int, tools: str | Path | None) -> dict
         "depth_norm": None,
         "cost_score": None,
         "reward": 0.0,
+        "first_failure_stage": "compile",
         "flagged": False,
         "fail_reason": None,
         "stage_logs": {},
@@ -384,6 +385,7 @@ def grade(
     compile_result = compile_rtl(task, rtl, tools=tools)
     logs["compile"] = compile_result["stdout"]
     if not compile_result["ok"]:
+        result["first_failure_stage"] = "compile"
         result["fail_reason"] = "compile failed" + (
             " (timeout)" if compile_result["timed_out"] else ""
         )
@@ -394,6 +396,7 @@ def grade(
     logs["visible"] = visible["stdout"]
     visible_truncated = visible["truncated"]
     if not visible["passed"] and not visible_truncated:
+        result["first_failure_stage"] = "visible_sim"
         result["reward"] = 0.1
         result["fail_reason"] = "visible testbench timeout" if visible["timed_out"] else "visible testbench failed"
         return result
@@ -404,6 +407,7 @@ def grade(
     logs["hidden"] = hidden["stdout"]
     hidden_truncated = hidden["truncated"]
     if not hidden["passed"] and not hidden_truncated:
+        result["first_failure_stage"] = "hidden_sim"
         result["reward"] = 0.2
         result["fail_reason"] = "hidden testbench timeout" if hidden["timed_out"] else "hidden testbench failed"
         return result
@@ -420,6 +424,7 @@ def grade(
     logs["oracle"] = oracle["stdout"]
     result["oracle_results"] = oracle["runs"]
     if not oracle["passed"]:
+        result["first_failure_stage"] = "oracle"
         result["reward"] = 0.2
         result["flagged"] = True
         result["fail_reason"] = "; ".join([*truncation_reasons, "oracle failed"])
@@ -427,10 +432,12 @@ def grade(
     result["oracle_pass"] = True
 
     if visible_truncated:
+        result["first_failure_stage"] = "visible_sim"
         result["reward"] = 0.1
         result["fail_reason"] = truncation_reasons[0]
         return result
     if hidden_truncated:
+        result["first_failure_stage"] = "hidden_sim"
         result["reward"] = 0.2
         result["fail_reason"] = truncation_reasons[-1]
         return result
@@ -438,6 +445,7 @@ def grade(
     static_ok, static_reasons = static_sanity(rtl)
     logs["sanity"] = "sanity checks passed" if static_ok else "\n".join(static_reasons)
     if not static_ok:
+        result["first_failure_stage"] = "sanity"
         result["reward"] = 0.2
         result["flagged"] = True
         result["fail_reason"] = "; ".join(static_reasons)
@@ -448,11 +456,13 @@ def grade(
     result["area_cells"] = agent_synth["cells"]
     result["depth"] = agent_synth["depth"]
     if not agent_synth["ok"]:
+        result["first_failure_stage"] = "synthesis"
         result["reward"] = 0.2
         result["flagged"] = True
         result["fail_reason"] = "agent synthesis failed"
         return result
     if int(agent_synth["cells"]) < task.area_floor:
+        result["first_failure_stage"] = "sanity"
         result["reward"] = 0.2
         result["flagged"] = True
         result["fail_reason"] = (
@@ -467,6 +477,7 @@ def grade(
     result["ref_cells"] = ref_synth["cells"]
     result["ref_depth"] = ref_synth["depth"]
     if not ref_synth["ok"] or not ref_synth["cells"] or not ref_synth["depth"]:
+        result["first_failure_stage"] = "synthesis"
         result["reward"] = 0.2
         result["flagged"] = True
         result["fail_reason"] = "reference synthesis failed"
@@ -481,6 +492,7 @@ def grade(
     )
     result["cost_score"] = cost_score
     result["reward"] = 0.7 + 0.3 * cost_score
+    result["first_failure_stage"] = "none"
     result["fail_reason"] = None
     return result
 

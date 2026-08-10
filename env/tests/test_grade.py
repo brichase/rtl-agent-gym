@@ -22,6 +22,7 @@ class GradeLadderTests(unittest.TestCase):
             self.assertTrue(result[gate], gate)
         self.assertEqual(result["area_norm"], 1.0)
         self.assertEqual(result["depth_norm"], 1.0)
+        self.assertEqual(result["first_failure_stage"], "none")
 
     def test_stub_stops_at_visible_gate(self) -> None:
         result = grade(FIXTURE, FIXTURE / "broken" / "stub.v")
@@ -29,6 +30,7 @@ class GradeLadderTests(unittest.TestCase):
         self.assertTrue(result["compile_ok"])
         self.assertFalse(result["visible_pass"])
         self.assertFalse(result["flagged"])
+        self.assertEqual(result["first_failure_stage"], "visible_sim")
 
     def test_off_by_one_stops_at_hidden_gate(self) -> None:
         result = grade(FIXTURE, FIXTURE / "broken" / "off_by_one.v")
@@ -36,6 +38,7 @@ class GradeLadderTests(unittest.TestCase):
         self.assertTrue(result["visible_pass"])
         self.assertFalse(result["hidden_pass"])
         self.assertFalse(result["flagged"])
+        self.assertEqual(result["first_failure_stage"], "hidden_sim")
 
     def test_zero_time_loop_is_killed(self) -> None:
         result = grade(FIXTURE, FIXTURE / "broken" / "infinite_loop.v")

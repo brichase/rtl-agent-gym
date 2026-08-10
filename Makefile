@@ -1,9 +1,12 @@
 PYTHON ?= /data/projects/rtl-agent-gym/venv/bin/python
 
-.PHONY: smoke-test test clean
+.PHONY: smoke-test leakage-check test clean
 
 smoke-test:
 	$(PYTHON) -m env.grade --smoke
+
+leakage-check:
+	$(PYTHON) -m agent.leakage_check
 
 test:
 	$(PYTHON) -m unittest discover -s env/tests -v

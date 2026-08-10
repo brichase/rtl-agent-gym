@@ -14,6 +14,19 @@ from typing import Any, Iterable, Sequence
 
 SOLVED_REWARD = 0.7
 CONDITION_ORDER = {"single_shot": 0, "agentic": 1}
+FAILURE_STAGE_ORDER = (
+    "none",
+    "no_submission",
+    "compile",
+    "visible_sim",
+    "tool_argument",
+    "tool_execution",
+    "hidden_sim",
+    "oracle",
+    "sanity",
+    "synthesis",
+    "protocol_violation",
+)
 
 
 def load_rows(path: Path) -> list[dict[str, Any]]:
@@ -318,6 +331,19 @@ def _latency_table(rows: list[dict[str, Any]]) -> list[str] | None:
     )
 
 
+def _failure_table(rows: list[dict[str, Any]]) -> list[str]:
+    counts: dict[str, int] = defaultdict(int)
+    for row in rows:
+        stage = row.get("first_failure_stage")
+        counts[str(stage) if stage else "unknown"] += 1
+    ordered = [stage for stage in FAILURE_STAGE_ORDER if counts[stage]]
+    ordered.extend(sorted(stage for stage in counts if stage not in FAILURE_STAGE_ORDER))
+    return _table(
+        ["First failure stage", "Episodes", "Share"],
+        ([stage, counts[stage], _rate(counts[stage], len(rows))] for stage in ordered),
+    )
+
+
 def render_report(rows: list[dict[str, Any]], *, input_path: Path, output_path: Path) -> str:
     detail, _ = _detail_table(rows, output_path)
     lines = [
@@ -333,6 +359,10 @@ def render_report(rows: list[dict[str, Any]], *, input_path: Path, output_path: 
         "## Results by task, model, and condition",
         "",
         *detail,
+        "",
+        "## First-failure attribution",
+        "",
+        *_failure_table(rows),
     ]
     latency = _latency_table(rows)
     if latency is not None:
