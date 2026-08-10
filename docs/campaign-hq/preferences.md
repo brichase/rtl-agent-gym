@@ -22,3 +22,10 @@
 - Model/effort overrides: user's live request wins; record requested worker, model, and reasoning level before dispatch
 - Check-in cadence: phase boundaries and plan-changing surprises
 - Permission envelope: record Codex sandbox/network/approval policy and Claude worker edit permissions at kickoff
+
+## Semantic conventions RATIFIED by user (2026-08-09) — the graded contract, locked
+- FIFO: simultaneous rd+wr at full → both accepted (occupancy stays full); at empty → write-only accepted. (D2)
+- rr_arbiter: registered grant; sync reset → remembered position 3 (requester 0 first after reset). (D5)
+- uart_tx: acceptance edge begins start-bit interval; data bit 0 appears CLKS_PER_BIT edges later; 8N1 LSB-first. (D6)
+- axi_lite_regs: same-edge read returns OLD register value (later read NEW); bad/unaligned/out-of-range addr → SLVERR. (D7)
+Do not change these without a new explicit user decision — they poison all eval numbers.
