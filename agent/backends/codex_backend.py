@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass, field
 import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import subprocess
 import time
 from typing import Any
@@ -17,6 +19,24 @@ from ..prompts import Prompt
 
 TranscriptWriter = Callable[[dict[str, Any]], None]
 PYTHON = "/data/projects/rtl-agent-gym/venv/bin/python"
+APPROVED_TOOLS = frozenset({"run_sim", "run_synth", "submit"})
+ACTION_ITEM_TYPES = frozenset(
+    {
+        "command_execution",
+        "dynamic_tool_call",
+        "file_change",
+        "file_read",
+        "image_view",
+        "web_search",
+    }
+)
+
+
+@dataclass
+class CodexBackendResult(BackendResult):
+    protocol_violations: list[str] = field(default_factory=list)
+    tool_argument_errors: list[str] = field(default_factory=list)
+    tool_execution_errors: list[str] = field(default_factory=list)
 
 
 def _toml_string(value: str) -> str:
@@ -31,6 +51,7 @@ class CodexBackend:
         effort: str | None = None,
         wall_timeout_s: float | None = None,
         codex_command: str = "codex",
+        codex_home: Path | None = None,
     ) -> None:
         self.model_id = model_id
         self.effort = effort or os.environ.get("RTL_GYM_CODEX_EFFORT", "max")
@@ -38,6 +59,7 @@ class CodexBackend:
             os.environ.get("RTL_GYM_EPISODE_TIMEOUT_S", "900")
         )
         self.codex_command = codex_command
+        self.codex_home = codex_home
         self.repo_root = Path(__file__).resolve().parents[2]
 
     def command(
@@ -55,11 +77,12 @@ class CodexBackend:
             "--ephemeral",
             "-s",
             "read-only",
-            "-m",
-            self.model_id,
+            "--skip-git-repo-check",
             "-c",
             f"model_reasoning_effort={_toml_string(self.effort)}",
         ]
+        if self.model_id:
+            command[7:7] = ["-m", self.model_id]
         if condition == "agentic":
             tools_dir = os.environ.get(
                 "RTL_GYM_TOOLS",
@@ -75,11 +98,79 @@ class CodexBackend:
                 ("mcp_servers.rtlgym.env.RTL_GYM_EPISODE_DIR", str(episode_dir.resolve())),
                 ("mcp_servers.rtlgym.env.RTL_GYM_TOOLS", tools_dir),
                 ("mcp_servers.rtlgym.env.RTL_GYM_MAX_TOOL_CALLS", str(max_tool_calls)),
+                ("mcp_servers.rtlgym.env.PYTHONPATH", str(self.repo_root)),
             )
             for key, value in configs:
                 command.extend(["-c", f"{key}={value if key.endswith('.args') else _toml_string(value)}"])
         command.append(prompt.rendered)
         return command
+
+    @staticmethod
+    def _short(value: Any, limit: int = 120) -> str:
+        rendered = " ".join(str(value).split())
+        return rendered if len(rendered) <= limit else rendered[: limit - 3] + "..."
+
+    @classmethod
+    def _inspect_item(
+        cls,
+        item: dict[str, Any],
+        result: CodexBackendResult,
+        seen_actions: set[str],
+        seen_tool_errors: set[str],
+    ) -> None:
+        """Classify Codex JSONL actions without treating them as episode failures."""
+        item_type = str(item.get("type", ""))
+        identity = str(item.get("id", f"{item_type}:{len(seen_actions)}"))
+
+        if item_type == "mcp_tool_call":
+            server = item.get("server", item.get("server_name"))
+            tool = str(item.get("tool", item.get("name", "")))
+            if server != "rtlgym" or tool not in APPROVED_TOOLS:
+                action_key = f"mcp:{identity}"
+                if action_key not in seen_actions:
+                    seen_actions.add(action_key)
+                    result.protocol_violations.append(
+                        f"unapproved MCP tool: {server or '<unknown>'}/{tool or '<unknown>'}"
+                    )
+                return
+
+            arguments = item.get("arguments")
+            argument_key = f"argument:{identity}"
+            if (
+                not isinstance(arguments, dict)
+                or not isinstance(arguments.get("rtl"), str)
+            ) and argument_key not in seen_tool_errors:
+                seen_tool_errors.add(argument_key)
+                result.tool_argument_errors.append(f"{tool}: invalid rtl argument")
+
+            if item.get("status") not in {"completed", "failed"}:
+                return
+            execution_error = item.get("error")
+            payload = item.get("result")
+            if isinstance(payload, dict):
+                structured = payload.get("structured_content", payload.get("structuredContent"))
+                if payload.get("isError") is True or payload.get("is_error") is True:
+                    execution_error = execution_error or "tool returned isError"
+                if isinstance(structured, dict) and "error" in structured:
+                    execution_error = execution_error or structured["error"]
+            execution_key = f"execution:{identity}"
+            if execution_error and execution_key not in seen_tool_errors:
+                seen_tool_errors.add(execution_key)
+                result.tool_execution_errors.append(
+                    f"{tool}: {cls._short(execution_error)}"
+                )
+            return
+
+        is_action = item_type in ACTION_ITEM_TYPES or (
+            item_type.endswith("_tool_call") and item_type != "mcp_tool_call"
+        )
+        action_key = f"action:{identity}"
+        if not is_action or action_key in seen_actions:
+            return
+        seen_actions.add(action_key)
+        detail = item.get("command", item.get("path", item.get("name", "")))
+        suffix = f": {cls._short(detail)}" if detail else ""
+        result.protocol_violations.append(f"{item_type}{suffix}")
 
     @staticmethod
     def _message_text(event: dict[str, Any]) -> str | None:
@@ -140,14 +231,29 @@ class CodexBackend:
         state: Any,
     ) -> BackendResult:
         del tools
-        result = BackendResult()
+        result = CodexBackendResult()
         command = self.command(prompt, condition, task_dir, episode_dir, max_turns)
-        transcript({"type": "process_start", "backend": "codex", "argv": command[:-1] + ["<prompt>"]})
+        agent_cwd = episode_dir / "agent_cwd"
+        if agent_cwd.exists():
+            shutil.rmtree(agent_cwd)
+        agent_cwd.mkdir(parents=True)
+        transcript(
+            {
+                "type": "process_start",
+                "backend": "codex",
+                "argv": command[:-1] + ["<prompt>"],
+                "cwd": str(agent_cwd),
+            }
+        )
         started = time.monotonic()
+        process_env = os.environ.copy()
+        if self.codex_home is not None:
+            process_env["CODEX_HOME"] = str(self.codex_home.resolve())
         try:
             process = subprocess.Popen(
                 command,
-                cwd=self.repo_root,
+                cwd=agent_cwd,
+                env=process_env,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 stdin=subprocess.DEVNULL,
@@ -171,6 +277,8 @@ class CodexBackend:
         result.call_latencies_ms.append(round((time.monotonic() - started) * 1000, 3))
         last_usage: tuple[int, int] | None = None
         mcp_call_ids: set[str] = set()
+        seen_actions: set[str] = set()
+        seen_tool_errors: set[str] = set()
         for raw_line in stdout.splitlines():
             try:
                 event = json.loads(raw_line)
@@ -191,11 +299,14 @@ class CodexBackend:
                 message = failure.get("message") if isinstance(failure, dict) else failure
                 result.error = f"codex turn failed: {message}"
             item = event.get("item")
-            if isinstance(item, dict) and item.get("type") == "mcp_tool_call":
-                server = item.get("server", item.get("server_name"))
-                if server in {None, "rtlgym"}:
-                    identity = str(item.get("id", len(mcp_call_ids)))
-                    mcp_call_ids.add(identity)
+            if isinstance(item, dict):
+                self._inspect_item(item, result, seen_actions, seen_tool_errors)
+                if item.get("type") == "mcp_tool_call":
+                    server = item.get("server", item.get("server_name"))
+                    tool = item.get("tool", item.get("name"))
+                    if server == "rtlgym" and tool in APPROVED_TOOLS:
+                        identity = str(item.get("id", len(mcp_call_ids)))
+                        mcp_call_ids.add(identity)
             text = self._message_text(event)
             if text is not None:
                 result.final_text = text
