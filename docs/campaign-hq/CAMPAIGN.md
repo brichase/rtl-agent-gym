@@ -48,6 +48,10 @@ Scope discipline: plan §1 "Out" list is binding. Finish early → deepen analys
 - [ ] MIT license, pin repo, resume bullet
 - Fallback order if time collapses (plan §7): cut task 6 → 5 trials→3 → task 5. Never cut: two models, two conditions, red team, write-up.
 
+## OVERNIGHT RUN — COMPLETE (2026-08-10, before 06:00)
+Full eval finished: 120/120 episodes, 0 infra errors. luna 60/60 pass; sol 59/60 (one AXI single-shot miss, tool loop fixed 5/5). Report: results/full/report.md. README numbers + 3 findings filled, hacks/ has the flood example, evidence transcripts saved. Final smoke 36/36, unit tests OK, leakage-check PASS, fresh-clone repro PASS, MIT license. 44 commits. Token spend 8.6M in / 399k out (Codex plan). Deliverables checklist essentially complete; repo is ship-ready pending user's go to publish.
+Key finding: environment value is in synthesis-cost quality, not pass/fail (both models pass@5 6/6). UART agentic area 0.41-0.64x single-shot; FIFO depth 1.86->1.06. Depth pressure confirmed. Zero model reward-hacks.
+
 ## OVERNIGHT RUN (user asleep until ~06:00, 2026-08-10) — authorized "keep working"
 Guardrails honored: no remote (none exists), no destructive ops, everything self-verified before commit, additive only.
 - Full eval LAUNCHED: gpt-5.6-luna@max + gpt-5.6-sol@high, 6 tasks × 5 trials × 2 conditions = 60 episodes/model, parallel detached, --resume, monitored. Results → results/full/{luna,sol}/. All on Codex plan (no Anthropic key).
