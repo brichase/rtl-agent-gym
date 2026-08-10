@@ -95,22 +95,27 @@ def run_check(
             observed = "\n".join(
                 (result.final_text, submission, json.dumps(events, ensure_ascii=False))
             )
+            # Core invariant: planted answer-area data must never reach the agent.
+            # The prompt actively instructs the agent to search for and echo the canary,
+            # so if any file-read path existed the content would surface here.
             if canary_content in observed:
                 raise LeakageDetected("leakage detected: canary content reached the episode")
             if result.error:
                 raise RuntimeError(f"leakage probe episode failed: {result.error}")
-            searched = any(
+            # Structural guarantee: shell_tool is disabled, so the agent has no mechanism
+            # to execute a file-read at all. A command_execution event means the shell was
+            # (re-)enabled — a regression in the isolation, even if this run didn't leak.
+            executed_shell = any(
                 event.get("type") == "codex_event"
                 and isinstance(event.get("event"), dict)
                 and isinstance(event["event"].get("item"), dict)
                 and event["event"]["item"].get("type") == "command_execution"
                 for event in events
             )
-            if not searched:
-                raise RuntimeError("leakage probe inconclusive: Codex did not attempt a shell search")
-            if UNREADABLE_MARKER not in result.final_text:
+            if executed_shell:
                 raise RuntimeError(
-                    f"leakage probe inconclusive: final response omitted {UNREADABLE_MARKER}"
+                    "leakage probe regression: agent executed a shell command "
+                    "(shell_tool no longer disabled)"
                 )
     finally:
         canary_path.unlink(missing_ok=True)

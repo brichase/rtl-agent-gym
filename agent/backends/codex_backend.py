@@ -78,6 +78,12 @@ class CodexBackend:
             "-s",
             "read-only",
             "--skip-git-repo-check",
+            # Airtight isolation: the agent has no legitimate need for a shell (it only
+            # passes RTL strings to the rtlgym MCP tools). Disabling shell_tool makes it
+            # impossible to read reference/hidden/oracle files by any path, closing the
+            # evaluation-data leak at the source rather than relying on cwd isolation.
+            "--disable",
+            "shell_tool",
             "-c",
             f"model_reasoning_effort={_toml_string(self.effort)}",
         ]
