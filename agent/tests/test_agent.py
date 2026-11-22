@@ -21,7 +21,9 @@ from eval.report import render_report
 ROOT = Path(__file__).resolve().parents[2]
 TASK = ROOT / "env" / "fixtures" / "toy_adder"
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
-TOOLS = "/data/projects/rtl-agent-gym/toolchain/oss-cad-suite/bin"
+TOOLS = os.environ.get("RTL_GYM_TOOLS")
+if not TOOLS:
+    raise RuntimeError("RTL_GYM_TOOLS is not set; export it as the OSS CAD Suite bin/ directory")
 
 
 class EpisodeTests(unittest.TestCase):

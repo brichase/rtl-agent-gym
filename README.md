@@ -28,8 +28,10 @@ Built with Claude Code as an orchestrated campaign (Claude conducting, OpenAI Co
 # 1. Toolchain: OSS CAD Suite (iverilog + yosys), pinned. Point RTL_GYM_TOOLS at its bin/.
 export RTL_GYM_TOOLS=/path/to/oss-cad-suite/bin
 
-# 2. Python env (uv or venv), stdlib + pyyaml is enough for grading:
+# 2. Python env at ./venv (the Makefile's default PYTHON; override with PYTHON=...).
+#    stdlib + pyyaml is enough for grading:
 uv venv venv && uv pip install -p ./venv/bin/python pyyaml
+#    or, without uv: python3 -m venv venv && ./venv/bin/pip install pyyaml
 
 # 3. Run the full grader + red-team suite on references and adversarial submissions.
 #    NO API KEY REQUIRED — this grades known-good and known-broken designs only.
@@ -50,7 +52,7 @@ tasks/     6 tasks: task.yaml, spec.md, interface.v, tb_visible.v, tb_hidden.v, 
 redteam/   7 adversarial submissions + expected verdicts
 agent/     tool-use episode loop; Anthropic + Codex-CLI backends; stdio MCP tool server
 eval/      sweep runner + markdown report generator
-results/   results.jsonl, transcripts/, hacks/
+results/   full/ (results.jsonl + report), evidence/, hacks/
 ```
 
 Agent tools (the only interface a model under test gets): `run_sim(rtl)` compiles and runs the *visible* testbench; `run_synth(rtl)` returns Yosys cell area + logic depth; `submit(rtl)` ends the episode. All calls are timed and content-hash cached.
@@ -186,6 +188,7 @@ The token/cost columns disclose the confound — agentic spends ~10× the input 
 - **Synthesis-cost proxy, not PPA**: Yosys generic `stat` cell count and logic depth, no real library, no place-and-route.
 - **Proportionate sandbox**: temp-dir isolation, timeouts, output caps, and a shell-disabled agent — not a general-purpose security jail. The red-team suite empirically tests whether it's enough for the threat model (a model doing a task).
 - **Not budget-matched**: the agentic condition is allowed to spend more; the cost columns disclose it rather than controlling for it.
+- **Not a sealed benchmark**: the hidden testbenches, oracles and reference designs are in this repo, so the tasks are not held out and may enter future training data.
 
 ## Next steps
 
@@ -198,19 +201,10 @@ Real EDA (OpenROAD/commercial synthesis + PnR for true PPA rewards), timing-anno
 36/36. The agent evaluation additionally needs a configured OpenAI Codex CLI login; run
 `make leakage-check` first to confirm the isolation before trusting any agentic numbers.
 
+## Build records
+
+`docs/campaign-hq/` and `CLAUDE.md` are the working records of the agent-orchestrated build (plans, worker briefs, learnings), kept for transparency about how the project was made.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
-
----
-
-*Resume line:* Built **rtl-agent-gym** (open source, MIT): an agentic RTL-generation
-benchmark with adversarially hardened grading — hidden testbenches, randomized
-transaction-sequence oracles vs. reference designs (Icarus Verilog), and synthesis-cost
-proxy rewards (Yosys area + logic depth). Red-teamed the grader with 7 hand-built exploit
-submissions before trusting it (found and fixed an output-flood forgery; caught a
-reference-data leak in the agent sandbox and closed it by disabling the agent's shell).
-Evaluated two frontier models (5 trials/task) with a single-shot vs. tool-loop ablation
-that isolates the environment's contribution — showing the tool loop rescues a real
-AXI-Lite handshake bug and cuts synthesized area up to 2–3× on tasks with implementation
-freedom.

@@ -18,7 +18,7 @@ from ..prompts import Prompt
 
 
 TranscriptWriter = Callable[[dict[str, Any]], None]
-PYTHON = "/data/projects/rtl-agent-gym/venv/bin/python"
+PYTHON = str(Path(__file__).resolve().parents[2] / "venv" / "bin" / "python")
 APPROVED_TOOLS = frozenset({"run_sim", "run_synth", "submit"})
 ACTION_ITEM_TYPES = frozenset(
     {
@@ -90,10 +90,11 @@ class CodexBackend:
         if self.model_id:
             command[7:7] = ["-m", self.model_id]
         if condition == "agentic":
-            tools_dir = os.environ.get(
-                "RTL_GYM_TOOLS",
-                "/data/projects/rtl-agent-gym/toolchain/oss-cad-suite/bin",
-            )
+            tools_dir = os.environ.get("RTL_GYM_TOOLS")
+            if not tools_dir:
+                raise RuntimeError(
+                    "RTL_GYM_TOOLS is not set; export it as the OSS CAD Suite bin/ directory"
+                )
             configs = (
                 # codex exec auto-cancels MCP approval elicitations (exec/src/lib.rs,
                 # rust-v0.147.0); per-server approve mode is the only unattended path.

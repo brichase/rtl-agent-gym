@@ -1,14 +1,18 @@
-PYTHON ?= /data/projects/rtl-agent-gym/venv/bin/python
+ROOT := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+PYTHON ?= $(ROOT)venv/bin/python
 
-.PHONY: smoke-test leakage-check test clean
+.PHONY: check-tools smoke-test leakage-check test clean
 
-smoke-test:
+check-tools:
+	@test -n "$$RTL_GYM_TOOLS" || { echo "error: RTL_GYM_TOOLS is not set; export it as the OSS CAD Suite bin/ directory (see README Quickstart)" >&2; exit 2; }
+
+smoke-test: check-tools
 	$(PYTHON) -m env.grade --smoke
 
-leakage-check:
+leakage-check: check-tools
 	$(PYTHON) -m agent.leakage_check
 
-test:
+test: check-tools
 	$(PYTHON) -m unittest discover -s env/tests -v
 
 clean:
